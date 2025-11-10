@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<navigation xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/navigation"
+    app:startDestination="@id/galleryFragment">
+
+    <fragment
+        android:id="@+id/galleryFragment"
+        android:name="com.lsy.kotlin_demo2.fragments.GalleryFragment"
+        android:label="Gallery"
+        tools:layout="@layout/fragment_gallery">
+        <action
+            android:id="@+id/action_galleryFragment_to_photoFragment"
+            app:destination="@id/photoFragment"
+            app:popUpTo="@id/galleryFragment"
+            app:popUpToInclusive="false"/>
+        <action
+            android:id="@+id/action_galleryFragment_self"
+            app:destination="@id/galleryFragment" />
+    </fragment>
+    <fragment
+        android:id="@+id/photoFragment"
+        android:name="com.lsy.kotlin_demo2.fragments.PhotoFragment"
+        android:label="Photo"
+        tools:layout="@layout/fragment_photo"/>
+    <fragment
+        android:id="@+id/illustrationFragment"
+        android:name="com.lsy.kotlin_demo2.fragments.IllustrationFragment"
+        android:label="fragment_illustration"
+        tools:layout="@layout/fragment_illustration" >
+        <action
+            android:id="@+id/action_illustrationFragment_to_photoFragment"
+            app:destination="@id/photoFragment"
+            app:popUpTo="@id/illustrationFragment"
+            app:popUpToInclusive="false"/>
+        <action
+            android:id="@+id/action_illustrationFragment_self"
+            app:destination="@id/illustrationFragment" />
+    </fragment>
+    <fragment
+        android:id="@+id/vectorFragment"
+        android:name="com.lsy.kotlin_demo2.fragments.VectorFragment"
+        android:label="fragment_vector"
+        tools:layout="@layout/fragment_vector" >
+        <action
+            android:id="@+id/action_vectorFragment_to_photoFragment"
+            app:destination="@id/photoFragment"
+            app:popUpTo="@id/vectorFragment"
+            app:popUpToInclusive="false"/>
+        <action
+            android:id="@+id/action_vectorFragment_self"
+            app:destination="@id/vectorFragment" />
+    </fragment>
+</navigation>
