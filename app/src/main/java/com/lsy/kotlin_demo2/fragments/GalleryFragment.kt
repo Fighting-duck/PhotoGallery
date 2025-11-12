@@ -2,21 +2,19 @@ package com.lsy.kotlin_demo2.fragments
 
 import android.content.Context
 import android.os.Bundle
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.Observer
-import androidx.lifecycle.ViewModelProvider
-import androidx.navigation.NavController
-import androidx.navigation.findNavController
 import androidx.recyclerview.widget.RecyclerView
 import androidx.recyclerview.widget.StaggeredGridLayoutManager
-import com.lsy.kotlin_demo2.R
 import com.lsy.kotlin_demo2.adapters.GalleryAdapter
-import com.lsy.kotlin_demo2.adapters.OnFooterItemClickListener
+import com.lsy.kotlin_demo2.database.NetworkStatus
 import com.lsy.kotlin_demo2.databinding.FragmentGalleryBinding
+import com.lsy.kotlin_demo2.interfaces.OnFooterItemClickListener
 import com.lsy.kotlin_demo2.models.GalleryViewModel
 
 class GalleryFragment : Fragment() {
@@ -25,32 +23,28 @@ class GalleryFragment : Fragment() {
     private lateinit var mViewModel: GalleryViewModel
     private lateinit var mLayoutManager: StaggeredGridLayoutManager
     private lateinit var mContext: Context
-
     private var scrollPosition: Int = 0 // 记录滑动位置
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        Log.d("GalleryFragment", "onCreate")
         super.onCreate(savedInstanceState)
-        //mViewModel = ViewModelProvider( this, ViewModelProvider.AndroidViewModelFactory(requireActivity().application) ).get(GalleryViewModel::class.java)
         mViewModel = viewModels<GalleryViewModel>().value // 获取ViewModel实例(ktx获取)
         mContext = requireContext()
-    }
-
-    @Deprecated("Deprecated in Java")
-    override fun onActivityCreated(savedInstanceState: Bundle?) {
-        super.onActivityCreated(savedInstanceState)
     }
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View? {
+        Log.d("GalleryFragment", "onCreateView")
         mBinding = FragmentGalleryBinding.inflate(inflater, container, false)
         return mBinding.root
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        galleryAdapter = GalleryAdapter()
+        Log.d("GalleryFragment", "onViewCreated")
+        galleryAdapter = GalleryAdapter(mViewModel::retry)
         mBinding.recycleView.apply {
             adapter = galleryAdapter
             // 不整齐交错的网格
@@ -59,20 +53,13 @@ class GalleryFragment : Fragment() {
         }
 
         // 观察数据
-        mViewModel.photoListLive.observe(viewLifecycleOwner, {
-            if (mViewModel.needToScrollToTop) {
-                // 滚动到顶部
-                mBinding.recycleView.scrollToPosition(0)
-                mViewModel.needToScrollToTop = false
-            }
+        mViewModel.pagedListLiveData.observe(viewLifecycleOwner, Observer {
             galleryAdapter.submitList(it)
-            mBinding.swipeLayoutGallery.isRefreshing = false
         })
-        mViewModel.dataStatusLive.observe(viewLifecycleOwner, Observer {
-            galleryAdapter.footViewStatus = it
-            // 最后一个需要刷新
-            galleryAdapter.notifyItemChanged(galleryAdapter.itemCount - 1)
-
+        mViewModel.networkStatusLiveData.observe(viewLifecycleOwner, Observer {
+            Log.d("networkStatus", it.toString())
+            galleryAdapter.updateNetworkStatus(it)
+            mBinding.swipeLayoutGallery.isRefreshing = it == NetworkStatus.LOADING
         })
 
         // 下拉刷新
@@ -82,7 +69,7 @@ class GalleryFragment : Fragment() {
         // recycleView底部点击
         galleryAdapter.setFooterListener(object : OnFooterItemClickListener {
             override fun onItemClick() {
-                mViewModel.fetchData()
+                mViewModel.retry()
             }
         })
         // 给recycleView做一个滚动监听
@@ -98,7 +85,7 @@ class GalleryFragment : Fragment() {
                 // 当最后一个item完全可见
                 layoutManager.findLastVisibleItemPositions(intArray)
                 if (intArray[0] == galleryAdapter.itemCount - 1) { // 最后一个item完全可见
-                    mViewModel.fetchData() // 继续加载数据
+
                 }
             }
 
@@ -115,6 +102,7 @@ class GalleryFragment : Fragment() {
     // 恢复状态
     override fun onViewStateRestored(savedInstanceState: Bundle?) {
         super.onViewStateRestored(savedInstanceState)
+        Log.d("GalleryFragment", "onViewStateRestored")
         if (savedInstanceState != null) {
             scrollPosition = savedInstanceState.getInt("SCROLL_POSITION", 0)
             mBinding.recycleView.post {
@@ -126,6 +114,7 @@ class GalleryFragment : Fragment() {
     // 保存状态
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
+        Log.d("GalleryFragment", "onSaveInstanceState")
         // 保存列表当前滚动位置
         scrollPosition = mLayoutManager.findFirstVisibleItemPositions(null)[0]
         outState.putInt("SCROLL_POSITION", scrollPosition)

@@ -4,4 +4,9 @@
     <string name="hello_blank_fragment">Hello blank fragment</string>
     <string name="photo_tag">%d / %d</string>
     <string name="loading">正在加载…</string>
+
+    <!--navigation-->
+    <string name="navigation_home">主页</string>
+    <string name="navigation_explore">探索</string>
+    <string name="navigation_mine">我的</string>
 </resources>

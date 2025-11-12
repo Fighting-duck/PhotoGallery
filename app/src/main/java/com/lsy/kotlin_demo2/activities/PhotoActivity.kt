@@ -1,12 +1,10 @@
 package com.lsy.kotlin_demo2.activities
 
 import android.Manifest
-import android.annotation.SuppressLint
 import android.content.ContentValues
 import android.content.Context
 import android.content.pm.PackageManager
-import android.graphics.Bitmap
-import android.graphics.drawable.Drawable
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.Environment
@@ -15,34 +13,27 @@ import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
-import androidx.core.graphics.drawable.toBitmap
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
-import androidx.core.view.get
 import androidx.lifecycle.lifecycleScope
-import androidx.recyclerview.widget.RecyclerView
 import androidx.viewpager2.widget.ViewPager2
-import com.bumptech.glide.Glide
-import com.bumptech.glide.load.DataSource
-import com.bumptech.glide.load.engine.GlideException
-import com.bumptech.glide.request.RequestListener
-import com.bumptech.glide.request.target.Target
 import com.lsy.kotlin_demo2.R
 import com.lsy.kotlin_demo2.adapters.PagerPhotoListAdapter
 import com.lsy.kotlin_demo2.databinding.ActivityPhotoBinding
 import com.lsy.kotlin_demo2.domain.PhotoItem
+import com.lsy.kotlin_demo2.utils.ImageDownloader
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.io.OutputStream
 
 const val REQUEST_WRITE_EXTERNAL_STORAGE = 1
+
 class PhotoActivity : AppCompatActivity() {
     private lateinit var mBinding: ActivityPhotoBinding
-    private var position: Int = 0
-    private lateinit var photoList: ArrayList<PhotoItem>
-    private lateinit var context: Context
+    private var position: Int = 0  // 当前图片索引
+    private lateinit var photoList: ArrayList<PhotoItem> // 图片列表
+    private lateinit var context: Context // 上下文
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -54,9 +45,10 @@ class PhotoActivity : AppCompatActivity() {
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
             insets
         }
-        position = intent.getIntExtra("PHOTO_INDEX",0)
+        position = intent.getIntExtra("PHOTO_INDEX", 0)
         photoList = intent.getParcelableArrayListExtra<PhotoItem>("PHOTO_LIST") ?: arrayListOf()
     }
+
     override fun onStart() {
         super.onStart()
         PagerPhotoListAdapter().apply {
@@ -70,7 +62,8 @@ class PhotoActivity : AppCompatActivity() {
         // 垂直滚动
         mBinding.viewPager2.orientation = ViewPager2.ORIENTATION_VERTICAL
         // 监听滑动
-        mBinding.viewPager2.registerOnPageChangeCallback(object: ViewPager2.OnPageChangeCallback() {
+        mBinding.viewPager2.registerOnPageChangeCallback(object :
+            ViewPager2.OnPageChangeCallback() {
             override fun onPageSelected(position: Int) {
                 super.onPageSelected(position)
                 setPhotoTag(position)
@@ -78,42 +71,32 @@ class PhotoActivity : AppCompatActivity() {
         })
         mBinding.btnSave.setOnClickListener {
             // 申请权限
-            if(Build.VERSION.SDK_INT<29 && ContextCompat.checkSelfPermission(this,
-                    Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED){
-                requestPermissions(arrayOf(Manifest.permission.WRITE_EXTERNAL_STORAGE), REQUEST_WRITE_EXTERNAL_STORAGE)
-            }else{
+            if (Build.VERSION.SDK_INT < 29 && ContextCompat.checkSelfPermission(
+                    this,
+                    Manifest.permission.WRITE_EXTERNAL_STORAGE
+                ) != PackageManager.PERMISSION_GRANTED
+            ) {
+                requestPermissions(
+                    arrayOf(Manifest.permission.WRITE_EXTERNAL_STORAGE),
+                    REQUEST_WRITE_EXTERNAL_STORAGE
+                )
+            } else {
                 savePhoto()
             }
         }
     }
 
     fun setPhotoTag(position: Int) {
-        mBinding.photoTag.text = getString(R.string.photo_tag,position+1,photoList.size)
+        mBinding.photoTag.text = getString(R.string.photo_tag, position + 1, photoList.size)
     }
 
     fun savePhoto() {
         lifecycleScope.launch {
             withContext(Dispatchers.IO) {
-                // 1. 获取图片（需在主线程）
-                var bitmap: Bitmap? = null
-                withContext(Dispatchers.Main) {
-                    val recyclerView = mBinding.viewPager2.get(0) as? RecyclerView
-                    val holder =
-                        recyclerView?.findViewHolderForLayoutPosition(mBinding.viewPager2.currentItem)
-                                as? PagerPhotoListAdapter.MyViewHolder
-                    bitmap = holder?.photoView?.drawable?.toBitmap()
-                }
-
-                if (bitmap == null) {
-                    // 2. 显示 Toast：切换到主线程 + 用正确 Context
-                    MainScope().launch {
-                        Toast.makeText(context, "无法获取图片", Toast.LENGTH_SHORT).show()
-                    }
-                    return@withContext
-                }
-
-                // 3. 生成保存路径
-                val saveUri = context.contentResolver.insert(
+                //1. 获取图片
+                val photoItem = photoList[position]
+                // 2. 生成保存路径
+                val saveUri: Uri = context.contentResolver.insert(
                     MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
                     ContentValues().apply {
                         put(
@@ -129,21 +112,16 @@ class PhotoActivity : AppCompatActivity() {
                     }
                     return@withContext
                 }
-
-                // 4. 保存图片
-                context.contentResolver.openOutputStream(saveUri)?.use { outputStream ->
-                    val success = bitmap.compress(Bitmap.CompressFormat.PNG, 100, outputStream)
-                    MainScope().launch {
-                        if (success) {
-                            Toast.makeText(context, "保存成功", Toast.LENGTH_SHORT).show()
-                        } else {
-                            Toast.makeText(context, "保存失败：写入失败", Toast.LENGTH_SHORT).show()
+                // 3. 下载图片
+                ImageDownloader(context).download(photoItem.fullUrl, saveUri) { result ->
+                    result.fold(
+                        onSuccess = { uri ->
+                            Toast.makeText(context, "保存成功: $uri", Toast.LENGTH_SHORT).show()
+                        },
+                        onFailure = { e ->
+                            Toast.makeText(context, "失败: ${e.message}", Toast.LENGTH_SHORT).show()
                         }
-                    }
-                } ?: run {
-                    MainScope().launch {
-                        Toast.makeText(context, "保存失败：无法打开输出流", Toast.LENGTH_SHORT).show()
-                    }
+                    )
                 }
             }
         }
@@ -157,12 +135,11 @@ class PhotoActivity : AppCompatActivity() {
         deviceId: Int
     ) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults, deviceId)
-        when(requestCode) {
+        when (requestCode) {
             REQUEST_WRITE_EXTERNAL_STORAGE -> {
                 if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
                     savePhoto()
-                }
-                else {
+                } else {
                     // 权限被拒绝
                     Toast.makeText(this, "权限被拒绝", Toast.LENGTH_SHORT).show()
                 }

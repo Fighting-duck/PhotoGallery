@@ -49,6 +49,7 @@ dependencies {
     implementation(libs.androidx.activity)
     implementation(libs.androidx.constraintlayout)
     implementation(libs.androidx.fragment.ktx)
+    implementation(libs.androidx.paging.runtime.ktx)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
@@ -66,6 +67,10 @@ dependencies {
 
     // 图片加载
     implementation("com.github.bumptech.glide:glide:4.16.0")
+
+    // 视频加载
+    implementation("com.google.android.exoplayer:exoplayer:2.19.1")
+    implementation("com.google.android.exoplayer:exoplayer-ui:2.19.1") // 控制UI组件
 
     // 生命周期与导航
     implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.6.2")
